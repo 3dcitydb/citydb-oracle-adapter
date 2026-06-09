@@ -15,7 +15,7 @@ The adapter is compiled against a specific citydb-tool release. The target versi
 
 ```gradle
 ext {
-    citydbVersion = '1.3.1'
+    citydbVersion = '1.3.2'
 }
 ```
 
@@ -93,7 +93,7 @@ includeBuild '../citydb-oracle-adapter'
 ```
 ```gradle
 // citydb-tool/citydb-cli/build.gradle  (runtimeOnly is enough; discovered via ServiceLoader)
-runtimeOnly 'org.citydb:citydb-oracle-adapter:1.3.1'
+runtimeOnly 'org.citydb:citydb-oracle-adapter:1.0.0-Snapshot'
 ```
 
 Then run the CLI via the `:citydb-cli:run` task:

@@ -9,7 +9,7 @@ ext {
     citydbVersion = '1.3.1'
 }
 
-version = citydbVersion
+version = '1.0.0-Snapshot'
 
 java {
     toolchain {
