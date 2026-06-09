@@ -84,51 +84,25 @@ citydb export --config-file oracle.json -o out.gml
 
 ## Debugging with a local citydb-tool (Gradle composite build)
 
-For a fast edit-debug loop on the adapter, wire it into a **local checkout of citydb-tool**
-(on the matching release branch, e.g. `release-1.3`) via a Gradle
-[composite build](https://docs.gradle.org/current/userguide/composite_builds.html). This runs
-the real CLI with the adapter source on the module path, so you can set breakpoints in both
-the adapter and citydb-tool.
+Wire the adapter into a local checkout of citydb-tool (matching release branch, e.g.
+`release-1.3`) so the CLI runs with the adapter source on the module path:
 
-1. In the **citydb-tool** checkout, add the adapter as an included build and a runtime
-   dependency of the CLI. `runtimeOnly` is enough — the adapter is discovered through
-   `ServiceLoader` service binding, so no `requires` directive is needed in the CLI's
-   `module-info.java`:
+```gradle
+// citydb-tool/settings.gradle
+includeBuild '../citydb-oracle-adapter'
+```
+```gradle
+// citydb-tool/citydb-cli/build.gradle  (runtimeOnly is enough; discovered via ServiceLoader)
+runtimeOnly 'org.citydb:citydb-oracle-adapter:1.3.1'
+```
 
-   ```gradle
-   // citydb-tool/settings.gradle
-   includeBuild '../citydb-oracle-adapter'
-   ```
+Then run the CLI via the `:citydb-cli:run` task:
 
-   ```gradle
-   // citydb-tool/citydb-cli/build.gradle
-   dependencies {
-       runtimeOnly 'org.citydb:citydb-oracle-adapter:1.3.1'
-   }
-   ```
+```bash
+./gradlew :citydb-cli:run --args="import --config-file oracle.json data.gml"
+```
 
-   Gradle substitutes the published coordinates with this project automatically (matched by
-   `group:name`), so the version only has to exist, not match exactly.
-
-2. Run the CLI with the JVM paused for a debugger. `--debug-jvm` makes Gradle listen on port
-   5005 and suspend until a debugger attaches:
-
-   ```bash
-   ./gradlew :citydb-cli:run \
-       --args="import --config-file /path/to/oracle.json /path/to/data.gml" \
-       --debug-jvm
-   ```
-
-3. In IntelliJ, create a **Remote JVM Debug** run configuration on `localhost:5005` and attach.
-   Open both this project and the citydb-tool checkout so the debugger can resolve sources on
-   either side, then step through.
-
-> This temporarily modifies the citydb-tool working tree. Revert the `settings.gradle` /
-> `build.gradle` edits (e.g. `git checkout`) when you are done.
-
-Selecting the Oracle adapter still requires a config file with `"databaseName": "Oracle"` (see
-[Select Oracle for import/export](#select-oracle-for-importexport) above), since there is no
-CLI flag for the adapter type.
+> Revert these `settings.gradle` / `build.gradle` edits when done.
 
 ## Status
 
