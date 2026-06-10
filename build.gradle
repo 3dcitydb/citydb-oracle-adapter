@@ -22,6 +22,14 @@ tasks.named('compileJava') {
     options.encoding = 'UTF-8'
 }
 
+// When running the modular adapter from Gradle's exploded output, classes and
+// resources live in separate directories (build/classes/java/main vs.
+// build/resources/main). In JPMS, Class.getResourceAsStream on a named module
+// only searches that module's own root, so resources in the separate directory
+// (e.g. query_feature_hierarchy.sql) are not found and return null. Merging the
+// resources into the classes directory keeps the whole module in one root.
+sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory
+
 repositories {
     maven {
         url = 'https://repo.osgeo.org/repository/release/'
