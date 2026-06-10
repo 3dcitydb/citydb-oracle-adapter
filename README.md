@@ -5,8 +5,7 @@ tool ([citydb-tool](https://github.com/3dcitydb/citydb-tool)).
 
 This is a standalone, pluggable database adapter. It is built against the **published**
 `org.citydb:citydb-database` artifact and ships as a Java module that the citydb-tool CLI
-discovers at runtime via the `java.util.ServiceLoader` service-binding mechanism — no changes
-to citydb-tool itself are required.
+discovers at runtime via the `java.util.ServiceLoader` service-binding mechanism.
 
 ## Compatibility
 
@@ -15,11 +14,9 @@ The adapter is compiled against a specific citydb-tool release. The target versi
 
 ```gradle
 ext {
-    citydbVersion = '1.3.2'
+    citydbVersion = '1.3.1'
 }
 ```
-
-The adapter **must** be run against a citydb-tool distribution of the same version.
 
 ## Build
 
@@ -28,11 +25,11 @@ The adapter **must** be run against a citydb-tool distribution of the same versi
 ```
 
 To produce a ready-to-drop-in folder containing the adapter jar together with its
-Oracle-specific dependencies (Oracle JDBC + Spatial):
+Oracle-specific dependencies:
 
 ```bash
-./gradlew assemblePlugin
-# -> build/plugin/
+./gradlew assembleAdapter
+# -> build/adapter/
 #      citydb-oracle-adapter-<version>.jar
 #      ojdbc17-*.jar
 #      sdoapi-*-module.jar
@@ -41,11 +38,11 @@ Oracle-specific dependencies (Oracle JDBC + Spatial):
 
 ## Install into citydb-tool
 
-Copy the contents of `build/plugin/` into the citydb-tool distribution's module path,
+Copy the contents of `build/adapter/` into the citydb-tool distribution's module path,
 i.e. its `lib/` directory:
 
 ```bash
-cp build/plugin/* /path/to/citydb-tool/lib/
+cp build/adapter/* /path/to/citydb-tool/lib/
 ```
 
 Because every jar in `lib/` is on the JVM module path at launch, the JVM performs service
@@ -77,9 +74,11 @@ CLI flag for it, so set it in a config file passed with `--config-file`:
 
 Then run import/export as usual:
 
+`import` and `export` each require a format subcommand (`citygml` or `cityjson`):
+
 ```bash
-citydb import --config-file oracle.json data.gml
-citydb export --config-file oracle.json -o out.gml
+citydb import citygml --config-file oracle.json data.gml
+citydb export citygml --config-file oracle.json -o out.gml
 ```
 
 ## Debugging with a local citydb-tool (Gradle composite build)
@@ -103,6 +102,24 @@ Then run the CLI via the `:citydb-cli:run` task:
 ```
 
 > Revert these `settings.gradle` / `build.gradle` edits when done.
+
+## Testing the CLI from this repo
+
+For an in-process, IDE-debuggable test loop you can drive the citydb-tool CLI directly from
+this project's test sources &mdash; no distribution to assemble, no composite build. The
+CLI is pulled from Maven (`org.citydb:citydb-cli`, same version as `citydbVersion`), which
+transitively provides picocli, log4j and the citydb runtime.
+
+The entry point is [`OracleCliLauncher`](src/test/java/org/citydb/database/oracle/cli/OracleCliLauncher.java),
+wrapped by the `runCli` Gradle task. Point [`src/test/resources/oracle.json`](src/test/resources/oracle.json)
+at your Oracle instance (it sets `databaseName: "Oracle"` to select this adapter), then:
+
+```bash
+./gradlew runCli --args="--version"
+./gradlew runCli --args="connect --config-file src/test/resources/oracle.json"
+./gradlew runCli --args="import citygml --config-file src/test/resources/oracle.json data.gml"
+./gradlew runCli --args="export citygml --config-file src/test/resources/oracle.json -o out.gml"
+```
 
 ## Status
 

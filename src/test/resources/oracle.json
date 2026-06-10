@@ -1,0 +1,16 @@
+{
+  "databaseOptions": {
+    "connections": {
+      "oracle": {
+        "description": "Oracle test database for the citydb-oracle-adapter",
+        "databaseName": "Oracle",
+        "host": "localhost",
+        "port": 1521,
+        "database": "FREEPDB1",
+        "schema": "CITYDB",
+        "user": "citydb",
+        "password": "citydb"
+      }
+    }
+  }
+}
