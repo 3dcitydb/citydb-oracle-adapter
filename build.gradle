@@ -35,6 +35,9 @@ repositories {
         url = 'https://repo.osgeo.org/repository/release/'
     }
     maven {
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+    }
+    maven {
         url = 'https://3dcitydb.org/maven'
     }
     mavenCentral()

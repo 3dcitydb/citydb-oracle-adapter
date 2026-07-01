@@ -73,6 +73,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
 
     @Override
     public Geometry<?> getGeometry(Object geometryObject) throws GeometryException {   //Input geometryObject is from an Object ResultSet.getObject()
+        if (geometryObject == null) {
+            return null;
+        }
         if (geometryObject instanceof Struct struct) {
             try {
                 JGeometry oracleGeometry = JGeometry.loadJS(struct);
@@ -91,6 +94,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
 
     @Override
     public Struct getGeometry(Geometry<?> geometry, boolean force3D, Connection connection) throws GeometryException {
+        if (geometry == null) {
+            return null;
+        }
         try {
             logger.debug("Citydb geometry type: " + geometry.getGeometryType());
             JGeometry oracleGeometry = toOracleGeometry(geometry);
@@ -104,6 +110,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
 
     @Override
     public Envelope getEnvelope(Object geometryObject) throws GeometryException {
+        if (geometryObject == null) {
+            return null;
+        }
         if (!(geometryObject instanceof Struct struct)) {
             throw new GeometryException("Unsupported geometry object type.");
         }
