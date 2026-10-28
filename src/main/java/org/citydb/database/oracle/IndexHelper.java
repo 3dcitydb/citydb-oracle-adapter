@@ -21,8 +21,6 @@ package org.citydb.database.oracle;
 
 import org.citydb.database.adapter.DatabaseAdapter;
 import org.citydb.database.schema.Index;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -31,7 +29,6 @@ import java.sql.Statement;
 import java.util.Locale;
 
 public class IndexHelper extends org.citydb.database.util.IndexHelper {
-    private final Logger logger = LoggerFactory.getLogger(IndexHelper.class);
 
     protected IndexHelper(DatabaseAdapter adapter) {
         super(adapter);
@@ -39,13 +36,10 @@ public class IndexHelper extends org.citydb.database.util.IndexHelper {
 
     @Override
     protected void createIndex(Index index, boolean ignoreNulls, Connection connection) throws SQLException {
-        // ignoreNulls is intentionally not applied: Oracle does not index null values by default.
         String sql = "create index if not exists " + index.getName() +
-                " on " + adapter.getConnectionDetails().getSchema() + "." +
-                index.getTable() +
+                " on " + adapter.getConnectionDetails().getSchema() + "." + index.getTable() +
                 "(" + String.join(", ", index.getColumns()) + ")" +
-                (index.getType() == Index.Type.SPATIAL ? " INDEXTYPE IS MDSYS.SPATIAL_INDEX_V2 " : " ");
-        logger.debug("createIndex: " + sql);
+                (index.getType() == Index.Type.SPATIAL ? " indextype is mdsys.spatial_index_v2" : "");
 
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
@@ -54,26 +48,16 @@ public class IndexHelper extends org.citydb.database.util.IndexHelper {
 
     @Override
     protected void dropIndex(Index index, Connection connection) throws SQLException {
-        String sql = "drop index if exists " +
-                adapter.getConnectionDetails().getSchema() + "." +
-                index.getName();
-        logger.debug("dropIndex: " + sql);
-
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute(sql);
+            stmt.execute("drop index if exists " + adapter.getConnectionDetails().getSchema() + "." + index.getName());
         }
     }
 
     @Override
     protected boolean indexExists(Index index, Connection connection) throws SQLException {
-        // Oracle stores unquoted identifiers upper-cased in the data dictionary, so match on the
-        // upper-cased owner/index name.
-        String sql = "select 1 " +
-                " from all_indexes " +
-                " where owner = '" + adapter.getConnectionDetails().getSchema().toUpperCase(Locale.ROOT) + "' " +
-                " and index_name = '" + index.getName().toUpperCase(Locale.ROOT) +
-                "' and rownum = 1";
-        logger.debug("indexExists: " + sql);
+        String sql = "select 1 from all_indexes " +
+                "where owner = '" + adapter.getConnectionDetails().getSchema().toUpperCase(Locale.ROOT) + "' " +
+                "and index_name = '" + index.getName().toUpperCase(Locale.ROOT) + "' and rownum = 1";
 
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
