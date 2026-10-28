@@ -25,8 +25,6 @@ import org.citydb.database.adapter.DatabaseAdapter;
 import org.citydb.database.geometry.GeometryException;
 import org.citydb.database.geometry.WKTWriter;
 import org.citydb.model.geometry.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -34,8 +32,6 @@ import java.util.Arrays;
 import java.util.List;
 
 public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter {
-    private static final Logger logger = LoggerFactory.getLogger(GeometryAdapter.class);
-
     private final WKTWriter textWriter = new WKTWriter().includeSRID(true);
     private final SpatialOperationHelper spatialOperationHelper = new SpatialOperationHelper();
     private final SrsHelper srsHelper;
@@ -76,12 +72,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         if (geometryObject instanceof Struct struct) {
             try {
                 JGeometry oracleGeometry = JGeometry.loadJS(struct);
-                logger.debug("Oracle JGeometry type: " + oracleGeometry.getType());
                 Geometry citydbGeometry = fromOracleGeometry(oracleGeometry);
-                logger.debug("Citydb geometry type: " + citydbGeometry.getGeometryType());
                 return citydbGeometry;
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
                 throw new GeometryException("Failed to parse geometry.", e);
             }
         } else {
@@ -92,12 +85,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
     @Override
     public Struct getGeometry(Geometry<?> geometry, boolean force3D, Connection connection) throws GeometryException {
         try {
-            logger.debug("Citydb geometry type: " + geometry.getGeometryType());
             JGeometry oracleGeometry = toOracleGeometry(geometry, force3D);
-            logger.debug("Oracle JGeometry type: " + oracleGeometry.getType());
             return JGeometry.storeJS(connection.unwrap(oracle.jdbc.OracleConnection.class), oracleGeometry);
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
             throw new GeometryException(e);
         }
     }

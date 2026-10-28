@@ -34,8 +34,6 @@ import org.citydb.sqlbuilder.query.CommonTableExpression;
 import org.citydb.sqlbuilder.query.Select;
 import org.citydb.sqlbuilder.schema.Table;
 import org.citydb.sqlbuilder.util.PlainSql;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -49,7 +47,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
-    private final Logger logger = LoggerFactory.getLogger(SchemaAdapter.class);
     protected static final String PROPERTY_ORACLE_SPATIAL = "oracle_spatial";
     protected static final int MAX_SQL_NAME_LENGTH = 128;
 
@@ -171,7 +168,6 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
         } else {
             select.where(property.column("val_lod").isNotNull());
         }
-        logger.debug("getResursiveLodQuery: " + select.toString());
         return select;
     }
 
@@ -261,7 +257,7 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
                 return DatabaseProperty.of(id, name, rs.getString(1));
             }
         } catch (SQLException e) {
-            logger.error("Failed to get database property: " + id + ", " + name + ": ", e);
+            //
         }
         return DatabaseProperty.of(id, name);
     }
