@@ -79,12 +79,12 @@ public class SrsHelper extends org.citydb.database.util.SrsHelper {
     @Override
     protected SpatialReferenceType getSpatialReferenceType(String type) {
         return switch (type.toUpperCase(Locale.ROOT)) {
-            case "PROJCRS", "PROJECTEDCRS", "PROJCS" -> SpatialReferenceType.PROJECTED_CRS;
-            case "GEOGCRS", "GEOGRAPHICCRS", "GEOGCS" -> SpatialReferenceType.GEOGRAPHIC_CRS;
-            case "GEODCRS", "GEODETICCRS" -> SpatialReferenceType.GEODETIC_CRS;
-            case "GEOCCS" -> SpatialReferenceType.GEOCENTRIC_CRS;
-            case "COMPOUNDCRS", "COMPDCS", "COMPD_CS" -> SpatialReferenceType.COMPOUND_CRS;
-            case "ENGCRS", "ENGINEERINGCRS", "LOCAL_CS" -> SpatialReferenceType.ENGINEERING_CRS;
+            case "PROJECTED" -> SpatialReferenceType.PROJECTED_CRS;
+            case "GEOGRAPHIC2D" -> SpatialReferenceType.GEOGRAPHIC_CRS;
+            case "GEOGRAPHIC3D" -> SpatialReferenceType.GEOGRAPHIC3D_CRS;
+            case "GEOCENTRIC" -> SpatialReferenceType.GEOCENTRIC_CRS;
+            case "COMPOUND" -> SpatialReferenceType.COMPOUND_CRS;
+            case "ENGINEERING" -> SpatialReferenceType.ENGINEERING_CRS;
             default -> SpatialReferenceType.UNKNOWN_CRS;
         };
     }

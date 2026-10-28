@@ -93,7 +93,7 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
     public Struct getGeometry(Geometry<?> geometry, boolean force3D, Connection connection) throws GeometryException {
         try {
             logger.debug("Citydb geometry type: " + geometry.getGeometryType());
-            JGeometry oracleGeometry = toOracleGeometry(geometry);
+            JGeometry oracleGeometry = toOracleGeometry(geometry, force3D);
             logger.debug("Oracle JGeometry type: " + oracleGeometry.getType());
             return JGeometry.storeJS(connection.unwrap(oracle.jdbc.OracleConnection.class), oracleGeometry);
         } catch (Exception e) {
@@ -133,7 +133,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
             Coordinate point = points.get(i);
             coords[i * dim] = point.getX();
             coords[i * dim + 1] = point.getY();
-            coords[i * dim + 2] = point.getZ();
+            if (dim >= 3) {
+                coords[i * dim + 2] = point.getZ();
+            }
         }
         return coords;
     }
@@ -166,8 +168,7 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         return sb.toString();
     }
 
-    private static JGeometry polygonToOracleGeometry(Polygon polygon) {
-        int dim = polygon.getVertexDimension();
+    private static JGeometry polygonToOracleGeometry(Polygon polygon, int dim) {
         List<LinearRing> rings = polygon.getRings();
         double[][] polygonCoords = new double[rings.size()][];
         for (int i = 0; i < rings.size(); i++) {
@@ -177,33 +178,36 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         return JGeometryUtil.createLinearPolygon(polygonCoords, dim, polygon.getSRID().orElse(0));
     }
 
-    private static JGeometry[] polygonsToOracleGeometries(List<Polygon> polygons) {
+    private static JGeometry[] polygonsToOracleGeometries(List<Polygon> polygons, int dim) {
         JGeometry[] oraclePolygons = new JGeometry[polygons.size()];
         for (int i = 0; i < oraclePolygons.length; i++) {
-            oraclePolygons[i] = polygonToOracleGeometry(polygons.get(i));
+            oraclePolygons[i] = polygonToOracleGeometry(polygons.get(i), dim);
         }
         return oraclePolygons;
     }
 
-    private static JGeometry solidToOracleGeometry(Solid solid) {
+    private static JGeometry solidToOracleGeometry(Solid solid, int dim) {
         List<Polygon> shell = solid.getShell().getPolygons();
         JGeometry[] polygons = new JGeometry[shell.size()];
         for (int i = 0; i < polygons.length; i++) {
-            polygons[i] = polygonToOracleGeometry(shell.get(i));
+            polygons[i] = polygonToOracleGeometry(shell.get(i), dim);
         }
         JGeometry multiPolygon = JGeometryUtil.createSurface(polygons);
         return JGeometryUtil.createSolid(multiPolygon);
     }
 
     static JGeometry toOracleGeometry(Geometry<?> geometry) {
+        return toOracleGeometry(geometry, false);
+    }
+
+    static JGeometry toOracleGeometry(Geometry<?> geometry, boolean force3D) {
         GeometryType type = geometry.getGeometryType();
-        int dim = geometry.getVertexDimension();
+        int dim = force3D ? 3 : geometry.getVertexDimension();
         int srid = geometry.getSRID().orElse(0);
 
         switch (type) {
             case POINT:
-                Coordinate coordinate = ((Point) geometry).getCoordinate();
-                double[] pointCoords = {coordinate.getX(), coordinate.getY(), coordinate.getZ()};
+                double[] pointCoords = pointToCoords(((Point) geometry).getCoordinate(), dim);
                 return JGeometry.createPoint(pointCoords, dim, srid);
             case MULTI_POINT:
                 List<Point> points = ((MultiPoint) geometry).getPoints();
@@ -224,26 +228,26 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
                 }
                 return JGeometry.createLinearMultiLineString(multiLineStringCoords, dim, srid);
             case POLYGON:
-                return polygonToOracleGeometry((Polygon) geometry);
+                return polygonToOracleGeometry((Polygon) geometry, dim);
             case TRIANGULATED_SURFACE:
                 List<Polygon> surfaceTriangles = ((TriangulatedSurface) geometry).getPolygons();
-                JGeometry[] oracleSurfaceTriangles = polygonsToOracleGeometries(surfaceTriangles);
+                JGeometry[] oracleSurfaceTriangles = polygonsToOracleGeometries(surfaceTriangles, dim);
                 return JGeometryUtil.createSurface(oracleSurfaceTriangles);
             case MULTI_SURFACE:
-                JGeometry[] multiSurfacePolygon = polygonsToOracleGeometries(((MultiSurface) geometry).getPolygons());
+                JGeometry[] multiSurfacePolygon = polygonsToOracleGeometries(((MultiSurface) geometry).getPolygons(), dim);
                 return JGeometryUtil.createSurface(multiSurfacePolygon);
             case COMPOSITE_SURFACE:
                 List<Polygon> compositeSurface = ((CompositeSurface) geometry).getPolygons();
-                JGeometry[] oracleCompositeSurfaces = polygonsToOracleGeometries(compositeSurface);
+                JGeometry[] oracleCompositeSurfaces = polygonsToOracleGeometries(compositeSurface, dim);
                 return JGeometryUtil.createSurface(oracleCompositeSurfaces);
             case SOLID:
-                return solidToOracleGeometry((Solid) geometry);
+                return solidToOracleGeometry((Solid) geometry, dim);
             case MULTI_SOLID:
                 List<Solid> citydbMultiSolids = ((MultiSolid) geometry).getSolids();
                 JGeometry[] oracleMultiSolids = new JGeometry[citydbMultiSolids.size()];
                 for (int i = 0; i < citydbMultiSolids.size(); i++) {
                     Solid solid = citydbMultiSolids.get(i);
-                    JGeometry[] multiSolidPolygon = polygonsToOracleGeometries(solid.getShell().getPolygons());
+                    JGeometry[] multiSolidPolygon = polygonsToOracleGeometries(solid.getShell().getPolygons(), dim);
                     JGeometry surface = JGeometryUtil.createSurface(multiSolidPolygon);
                     oracleMultiSolids[i] = JGeometryUtil.createSolid(surface);
                 }
@@ -253,7 +257,7 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
                 JGeometry[] oracleCompositeSolids = new JGeometry[citydbCompositeSolids.size()];
                 for (int i = 0; i < citydbCompositeSolids.size(); i++) {
                     Solid solid = citydbCompositeSolids.get(i);
-                    JGeometry[] compositePolygons = polygonsToOracleGeometries(solid.getShell().getPolygons());
+                    JGeometry[] compositePolygons = polygonsToOracleGeometries(solid.getShell().getPolygons(), dim);
                     JGeometry surface = JGeometryUtil.createSurface(compositePolygons);
                     oracleCompositeSolids[i] = JGeometryUtil.createSolid(surface);
                 }

@@ -36,6 +36,11 @@ public class OperationHelper extends org.citydb.database.util.OperationHelper {
     }
 
     @Override
+    public ScalarExpression castToDouble(ScalarExpression expression) {
+        return expression;
+    }
+
+    @Override
     public Expression intDivision(ScalarExpression leftOperand, ScalarExpression rightOperand) {
         return Function.of("trunc", ArithmeticOperation.of(leftOperand, "/", rightOperand));
     }

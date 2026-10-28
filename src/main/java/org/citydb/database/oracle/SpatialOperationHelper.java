@@ -45,6 +45,13 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
     }
 
     @Override
+    public BooleanExpression bbox3d(ScalarExpression leftOperand, ScalarExpression rightOperand) {
+        return Operators.and(bbox(leftOperand, rightOperand),
+                Operators.le(minOrdinate(leftOperand, 3), maxOrdinate(rightOperand, 3)),
+                Operators.ge(maxOrdinate(leftOperand, 3), minOrdinate(rightOperand, 3)));
+    }
+
+    @Override
     public BooleanExpression contains(ScalarExpression leftOperand, ScalarExpression rightOperand) {
         return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=CONTAINS querytype=WINDOW"));
     }
@@ -94,6 +101,14 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
     @Override
     public BooleanExpression beyond(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
         return Operators.not(Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.toString())));
+    }
+
+    private ScalarExpression minOrdinate(ScalarExpression operand, int dimension) {
+        return Function.of("MDSYS.sdo_geom.sdo_min_mbr_ordinate", operand, IntegerLiteral.of(dimension));
+    }
+
+    private ScalarExpression maxOrdinate(ScalarExpression operand, int dimension) {
+        return Function.of("MDSYS.sdo_geom.sdo_max_mbr_ordinate", operand, IntegerLiteral.of(dimension));
     }
 
     private ScalarExpression cast(ScalarExpression expression) {

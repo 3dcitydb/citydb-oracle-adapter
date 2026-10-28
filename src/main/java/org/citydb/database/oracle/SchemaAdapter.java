@@ -94,9 +94,13 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
     }
 
     @Override
-    public String getFeatureHierarchyQuery() {
+    public String getFeatureHierarchyQuery(int targetSRID) {
         try {
-            return featureHierarchyQuery.get();
+            int srid = adapter.getDatabaseMetadata().getSpatialReference().getSRID();
+            return featureHierarchyQuery.get()
+                    .replace("@VAL_IMPLICITGEOM_REFPOINT@", srid != targetSRID
+                            ? "MDSYS.sdo_cs.transform(H.VAL_IMPLICITGEOM_REFPOINT, " + targetSRID + ") AS VAL_IMPLICITGEOM_REFPOINT"
+                            : "H.VAL_IMPLICITGEOM_REFPOINT");
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create feature hierarchy query.", e);
         }
