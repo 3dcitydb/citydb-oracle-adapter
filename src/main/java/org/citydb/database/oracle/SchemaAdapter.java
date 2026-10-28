@@ -209,7 +209,7 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
     protected Version getCityDBVersion(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery("select major_version, minor_version, minor_revision, version " +
-                     "from citydb_util.citydb_version()")) {
+                     "from " + qualify("citydb_util") + ".citydb_version()")) {
             if (rs.next()) {
                 return Version.of(rs.getInt("major_version"),
                         rs.getInt("minor_version"),
@@ -305,6 +305,14 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
         } catch (SQLException e) {
             throw new RuntimeException("Invalid sql name:" + name, e);
         }
+    }
+
+    static String qualify(String schemaName, String objectName) {
+        return enquoteSqlName(schemaName) + "." + objectName;
+    }
+
+    String qualify(String objectName) {
+        return qualify(adapter.getConnectionDetails().getSchema(), objectName);
     }
 
     static List<String> enquoteSqlNames(List<String> names) {

@@ -24,7 +24,6 @@ import org.citydb.database.srs.SpatialReference;
 import org.citydb.database.srs.SpatialReferenceType;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -32,28 +31,26 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class SrsHelper extends org.citydb.database.util.SrsHelper {
+    private final String citydbSrs;
 
     SrsHelper(DatabaseAdapter adapter) {
         super(adapter);
+        citydbSrs = SchemaAdapter.qualify(adapter.getConnectionDetails().getSchema(), "citydb_srs");
     }
 
     @Override
     public Optional<SpatialReference> getDatabaseSrs(String schemaName, Connection connection) throws SQLException {
-        // TODO semantic-review: ported from former SchemaAdapter.getDatabaseSrs(); now uses the passed
-        // schemaName (previously the connection's configured schema) as a bind parameter.
         String sql = "select srid, srs_name, coord_ref_sys_name, coord_ref_sys_kind, wktext " +
-                "from citydb_util.db_metadata(?)";
+                "from " + SchemaAdapter.qualify(schemaName, "citydb_util") + ".db_metadata()";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, schemaName);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(SpatialReference.of(rs.getInt("srid"),
-                            getSpatialReferenceType(rs.getString("coord_ref_sys_kind")),
-                            rs.getString("coord_ref_sys_name"),
-                            rs.getString("srs_name"),
-                            rs.getString("wktext")));
-                }
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return Optional.of(SpatialReference.of(rs.getInt("srid"),
+                        getSpatialReferenceType(rs.getString("coord_ref_sys_kind")),
+                        rs.getString("coord_ref_sys_name"),
+                        rs.getString("srs_name"),
+                        rs.getString("wktext")));
             }
         }
 
@@ -62,9 +59,8 @@ public class SrsHelper extends org.citydb.database.util.SrsHelper {
 
     @Override
     protected SpatialReference getSpatialReference(int srid, String identifier, Connection connection) throws SQLException {
-        // TODO semantic-review: ported from former SchemaAdapter.getSpatialReference().
         String sql = "select coord_ref_sys_name, coord_ref_sys_kind, wktext " +
-                "from citydb_srs.get_coord_ref_sys_info(" + srid + ")";
+                "from " + citydbSrs + ".get_coord_ref_sys_info(" + srid + ")";
 
         try (Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery(sql)) {

@@ -30,12 +30,19 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.function.IntFunction;
 
 public class SqlHelper extends org.citydb.database.util.SqlHelper {
+    private final String numberTab;
+    private final String stringTab;
 
     SqlHelper(DatabaseAdapter adapter) {
         super(adapter);
+        String schema = SchemaAdapter.checkSimpleSqlName(
+                adapter.getConnectionDetails().getSchema().toUpperCase(Locale.ROOT));
+        numberTab = schema + ".NUMBER_TAB";
+        stringTab = schema + ".STRING_TAB";
     }
 
     @Override
@@ -67,12 +74,12 @@ public class SqlHelper extends org.citydb.database.util.SqlHelper {
 
     @Override
     public void setLongArrayOrNull(PreparedStatement stmt, int index, Collection<Long> values) throws SQLException {
-        setArrayOrNull(stmt, index, values, "NUMBER_TAB", Long[]::new);
+        setArrayOrNull(stmt, index, values, numberTab, Long[]::new);
     }
 
     @Override
     public void setStringArrayOrNull(PreparedStatement stmt, int index, Collection<String> values) throws SQLException {
-        setArrayOrNull(stmt, index, values, "STRING_TAB", String[]::new);
+        setArrayOrNull(stmt, index, values, stringTab, String[]::new);
     }
 
     private <T> void setArrayOrNull(PreparedStatement stmt, int index, Collection<T> values, String type, IntFunction<T[]> factory) throws SQLException {

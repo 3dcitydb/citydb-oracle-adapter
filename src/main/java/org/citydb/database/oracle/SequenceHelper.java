@@ -34,20 +34,14 @@ import java.util.*;
 public class SequenceHelper extends org.citydb.database.util.SequenceHelper {
     private final SqlHelper helper;
     private final PreparedStatement stmt;
-    private final int prefixLength;
-    private final Map<Sequence, String> prefixedSequenceNames = new EnumMap<>(Sequence.class);
 
     SequenceHelper(Connection connection, DatabaseAdapter adapter) throws SQLException {
         super(connection);
         helper = adapter.getSchemaAdapter().getSqlHelper();
-        String prefix = adapter.getConnectionDetails().getSchema() + ".";
-        prefixLength = prefix.length();
-        for (Sequence sequence : Sequence.values()) {
-            prefixedSequenceNames.put(sequence, prefix + sequence.getName());
-        }
 
+        String citydbUtil = SchemaAdapter.qualify(adapter.getConnectionDetails().getSchema(), "citydb_util");
         stmt = connection.prepareStatement("select " +
-                "jt.name, citydb_util.get_seq_values(jt.name, jt.cnt) " +
+                "jt.name, " + citydbUtil + ".get_seq_values(jt.name, jt.cnt) " +
                 "from json_table(?, '$[*]' columns (" +
                 "  name varchar2(128) path '$.seq_name', " +
                 "  cnt  NUMBER path '$.count'" +
@@ -60,7 +54,7 @@ public class SequenceHelper extends org.citydb.database.util.SequenceHelper {
         helper.setJsonOrNull(stmt, 1, getJson(counts));
         try (ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                Sequence sequence = Sequence.of(rs.getString(1).substring(prefixLength));
+                Sequence sequence = Sequence.of(rs.getString(1));
                 Number[] values = (Number[]) rs.getArray(2).getArray();
                 results.put(sequence, Arrays.stream(values).map(Number::longValue).toList());
             }
@@ -75,7 +69,7 @@ public class SequenceHelper extends org.citydb.database.util.SequenceHelper {
         while (iterator.hasNext()) {
             Map.Entry<Sequence, Integer> entry = iterator.next();
             json.append("{\"seq_name\":\"")
-                    .append(prefixedSequenceNames.get(entry.getKey()))
+                    .append(entry.getKey().getName())
                     .append("\", \"count\":")
                     .append(entry.getValue());
             json.append("}");
