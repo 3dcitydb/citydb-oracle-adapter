@@ -52,7 +52,8 @@ public class OperationHelper extends org.citydb.database.util.OperationHelper {
 
     @Override
     public Expression toDate(ScalarExpression expression) {
-        return Function.of("to_date", expression);
+        // date-only values are stored as UTC midnight, so the date must be taken in UTC as well
+        return Function.of("trunc", Function.of("sys_extract_utc", expression).castAs("date"));
     }
 
     @Override

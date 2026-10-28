@@ -1,11 +1,7 @@
 WITH FEATURES AS (
     {}
-    -- Replace {} with the actual part of the query or data that populates the FEATURES CTE.
-    -- Example:
-    -- SELECT :ID AS ID FROM dual
 ), FEATURE_HIERARCHY (ID, FEATURE_ID, VAL_LOD, VAL_IMPLICITGEOM_ID, VAL_FEATURE_ID, VAL_RELATION_TYPE)
 AS (
-    -- Initial anchor member
     SELECT 
         NULL AS ID,
         F.ID AS FEATURE_ID,
@@ -18,7 +14,6 @@ AS (
 
     UNION ALL
 
-    -- Recursive member
     SELECT 
         P.ID,
         P.FEATURE_ID,
