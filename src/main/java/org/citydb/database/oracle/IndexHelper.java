@@ -41,6 +41,7 @@ public class IndexHelper extends org.citydb.database.util.IndexHelper {
                 "(" + String.join(", ", index.getColumns()) + ")" +
                 (index.getType() == Index.Type.SPATIAL ? " indextype is mdsys.spatial_index_v2" : "");
 
+        // ignoreNulls is intentionally not applied: Oracle does not index null values by default
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
         }
