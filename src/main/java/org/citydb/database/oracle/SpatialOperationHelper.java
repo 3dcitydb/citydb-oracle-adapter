@@ -93,25 +93,15 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
         return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=INSIDE querytype=WINDOW"));
     }
 
-//    @Override
-//    public BooleanExpression dWithin(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
-//        return Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.toString()));
-//    }
-
     @Override
     public BooleanExpression dWithin(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
-       return Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.getPlaceholders().get(0).getValue().get()));
-    }
-
-//    @Override
-//    public BooleanExpression beyond(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
-//        return Operators.not(Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.toString())));
-//    }
+        return Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.getPlaceholders().get(0).getValue().get()));
+    }
 
     @Override
-    public BooleanExpression beyond(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
-        return Operators.not(Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.getPlaceholders().get(0).getValue().get())));
-    }
+    public BooleanExpression beyond(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
+        return Operators.not(Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.getPlaceholders().get(0).getValue().get())));
+    }
 
     private ScalarExpression minOrdinate(ScalarExpression operand, int dimension) {
         return Function.of("MDSYS.sdo_geom.sdo_min_mbr_ordinate", operand, IntegerLiteral.of(dimension));
