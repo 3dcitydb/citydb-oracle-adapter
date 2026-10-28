@@ -14,7 +14,7 @@ The adapter is compiled against a specific citydb-tool release. The target versi
 
 ```gradle
 ext {
-    citydbVersion = '1.4.1'
+    citydbVersion = '1.5.0-SNAPSHOT'
 }
 ```
 

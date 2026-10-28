@@ -41,6 +41,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -195,6 +196,11 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
     }
 
     @Override
+    public DeleteHelper getDeleteHelper(Connection connection) {
+        return new DeleteHelper(connection, adapter);
+    }
+
+    @Override
     public StatisticsHelper getStatisticsHelper() {
         return statisticsHelper;
     }
@@ -227,17 +233,16 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
 
     @Override
     protected boolean schemaExists(String schemaName, Version version, Connection connection) throws SQLException {
-        // TODO semantic-review: ported from former getSchemaExists(); now uses the passed schemaName
-        // (previously the connection's configured schema) and executes directly. Oracle stores
-        // identifiers upper-cased in all_users, hence the toUpperCase().
-        String sql = "select 1 " +
-                " from all_users " +
-                " where username = '" + checkSimpleSqlName(schemaName.toUpperCase(Locale.ROOT)) + "' " +
-                " and rownum = 1";
-        logger.debug("schemaExists: " + sql);
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            return rs.next();
+        String sql = "select 1 from all_tables " +
+                "where owner = ? " +
+                "and table_name = 'DATABASE_SRS' " +
+                "and rownum = 1";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, schemaName.toUpperCase(Locale.ROOT));
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
