@@ -23,18 +23,11 @@ import org.citydb.database.adapter.DatabaseAdapter;
 import org.citydb.database.metadata.DatabaseSize;
 import org.citydb.sqlbuilder.function.Function;
 import org.citydb.sqlbuilder.literal.StringLiteral;
-import org.citydb.sqlbuilder.query.Select;
 import org.citydb.sqlbuilder.query.Selection;
-import org.citydb.sqlbuilder.query.SetOperator;
-import org.citydb.sqlbuilder.query.Sets;
 import org.citydb.sqlbuilder.schema.Table;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.EnumMap;
-import java.util.Map;
+import java.util.Collections;
 
 public class StatisticsHelper extends org.citydb.database.util.StatisticsHelper {
 
@@ -43,33 +36,10 @@ public class StatisticsHelper extends org.citydb.database.util.StatisticsHelper 
     }
 
     @Override
-    public DatabaseSize getDatabaseSize(Connection connection) throws SQLException {
-        String databaseSizeId = "database_size";
-        Table dbaSegments = Table.of("dba_segments");
-
-        SetOperator select = Sets.unionAll(
-                Select.newInstance()
-                        .select(StringLiteral.of(databaseSizeId), Function.of("sum", dbaSegments.column("bytes")))
-                        .from(dbaSegments),
-                Select.newInstance()
-                        .select(dbaSegments.column("segment_name"), dbaSegments.column("bytes"))
-                        .from(dbaSegments)
-                        .where(dbaSegments.column("owner").eq(SchemaAdapter.checkSimpleSqlName(adapter.getConnectionDetails().getSchema()))));
-
-        long databaseSize = 0;
-        Map<org.citydb.database.schema.Table, Long> tableSizes = new EnumMap<>(org.citydb.database.schema.Table.class);
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(select.toSql())) {
-            while (rs.next()) {
-                String identifier = rs.getString(1);
-                if (databaseSizeId.equals(identifier)) {
-                    databaseSize = rs.getLong(2);
-                } else {
-                    tableSizes.put(org.citydb.database.schema.Table.of(identifier), rs.getLong(2));
-                }
-            }
-        }
-        return DatabaseSize.of(databaseSize, tableSizes);
+    public DatabaseSize getDatabaseSize(Connection connection) {
+        // Not supported yet: dba_segments needs DBA privileges and user_segments cannot cover a
+        // schema other than the connected user's, so report all sizes as unknown instead of failing.
+        return DatabaseSize.of(Collections.emptyMap());
     }
 
     @Override
