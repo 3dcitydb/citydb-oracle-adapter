@@ -45,6 +45,10 @@ public class SqlHelper extends org.citydb.database.util.SqlHelper {
         stringTab = schema + ".STRING_TAB";
     }
 
+    String getNumberTab() {
+        return numberTab;
+    }
+
     @Override
     public void setBytesOrNull(PreparedStatement stmt, int index, byte[] bytes) throws SQLException {
         if (bytes != null) {

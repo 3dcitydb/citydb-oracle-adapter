@@ -19,121 +19,141 @@
 
 package org.citydb.database.oracle;
 
+import oracle.jdbc.OracleTypes;
 import org.citydb.database.adapter.DatabaseAdapter;
-import org.citydb.database.util.SqlHelper;
 
+import java.sql.Array;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
     private final SqlHelper helper;
     private final String citydbDelete;
     private final String citydbTerminate;
-    private final String numberTab;
-    private PreparedStatement deleteFeatureStmt;
-    private PreparedStatement deleteFeaturesStmt;
-    private PreparedStatement terminateFeatureStmt;
-    private PreparedStatement terminateFeaturesStmt;
+    private CallableStatement deleteFeatureStmt;
+    private CallableStatement deleteFeaturesStmt;
+    private CallableStatement terminateFeatureStmt;
+    private CallableStatement terminateFeaturesStmt;
 
     DeleteHelper(Connection connection, DatabaseAdapter adapter) {
         super(connection);
-        helper = adapter.getSchemaAdapter().getSqlHelper();
+        helper = (SqlHelper) adapter.getSchemaAdapter().getSqlHelper();
         String schema = adapter.getConnectionDetails().getSchema();
         citydbDelete = SchemaAdapter.qualify(schema, "citydb_delete");
         citydbTerminate = SchemaAdapter.qualify(schema, "citydb_terminate");
-        numberTab = SchemaAdapter.qualify(schema, "number_tab");
-    }
-
-    private PreparedStatement prepareDeleteStatement(String resultType) throws SQLException {
-        return connection.prepareStatement("declare result " + resultType + "; " +
-                "begin result := " + citydbDelete + ".delete_feature(?); end;");
-    }
-
-    private PreparedStatement prepareTerminateStatement(String resultType) throws SQLException {
-        return connection.prepareStatement("declare result " + resultType + "; " +
-                "begin result := " + citydbTerminate + ".terminate_feature(?, json(?), ?); end;");
     }
 
     @Override
-    public void deleteFeature(long id) throws SQLException {
+    public boolean deleteFeature(long id) throws SQLException {
         if (deleteFeatureStmt == null) {
-            deleteFeatureStmt = prepareDeleteStatement("number");
+            deleteFeatureStmt = prepareDeleteStatement(Types.NUMERIC);
         }
 
-        deleteFeatureStmt.setLong(1, id);
-        deleteFeatureStmt.execute();
+        deleteFeatureStmt.setLong(2, id);
+        return getId(deleteFeatureStmt) != null;
     }
 
     @Override
-    public void deleteFeatures(Collection<Long> ids) throws SQLException {
+    public Set<Long> deleteFeatures(Collection<Long> ids) throws SQLException {
         if (deleteFeaturesStmt == null) {
-            deleteFeaturesStmt = prepareDeleteStatement(numberTab);
+            deleteFeaturesStmt = prepareDeleteStatement(OracleTypes.ARRAY);
         }
 
-        helper.setLongArrayOrNull(deleteFeaturesStmt, 1, ids);
-        deleteFeaturesStmt.execute();
+        helper.setLongArrayOrNull(deleteFeaturesStmt, 2, ids);
+        return getIds(deleteFeaturesStmt);
     }
 
     @Override
-    public void terminateFeature(long id, String metadata, boolean cascade) throws SQLException {
+    public boolean terminateFeature(long id, String metadata, boolean cascade) throws SQLException {
         if (terminateFeatureStmt == null) {
-            terminateFeatureStmt = prepareTerminateStatement("number");
+            terminateFeatureStmt = prepareTerminateStatement(Types.NUMERIC);
         }
 
-        terminateFeatureStmt.setLong(1, id);
+        terminateFeatureStmt.setLong(2, id);
         setMetadata(terminateFeatureStmt, metadata);
-        terminateFeatureStmt.setInt(3, cascade ? 1 : 0);
-        terminateFeatureStmt.execute();
+        terminateFeatureStmt.setInt(4, cascade ? 1 : 0);
+        return getId(terminateFeatureStmt) != null;
     }
 
     @Override
-    public void terminateFeatures(Collection<Long> ids, String metadata, boolean cascade) throws SQLException {
+    public Set<Long> terminateFeatures(Collection<Long> ids, String metadata, boolean cascade) throws SQLException {
         if (terminateFeaturesStmt == null) {
-            terminateFeaturesStmt = prepareTerminateStatement(numberTab);
+            terminateFeaturesStmt = prepareTerminateStatement(OracleTypes.ARRAY);
         }
 
-        helper.setLongArrayOrNull(terminateFeaturesStmt, 1, ids);
+        helper.setLongArrayOrNull(terminateFeaturesStmt, 2, ids);
         setMetadata(terminateFeaturesStmt, metadata);
-        terminateFeaturesStmt.setInt(3, cascade ? 1 : 0);
-        terminateFeaturesStmt.execute();
+        terminateFeaturesStmt.setInt(4, cascade ? 1 : 0);
+        return getIds(terminateFeaturesStmt);
+    }
+
+    // the functions run DML, so they cannot be used in a select (ORA-14551); read the result as OUT parameter
+    private CallableStatement prepareDeleteStatement(int resultType) throws SQLException {
+        CallableStatement stmt = connection.prepareCall("{? = call " + citydbDelete + ".delete_feature(?)}");
+        registerResult(stmt, resultType);
+        return stmt;
+    }
+
+    private CallableStatement prepareTerminateStatement(int resultType) throws SQLException {
+        CallableStatement stmt = connection.prepareCall("{? = call " + citydbTerminate +
+                ".terminate_feature(?, json(?), ?)}");
+        registerResult(stmt, resultType);
+        return stmt;
+    }
+
+    private void registerResult(CallableStatement stmt, int resultType) throws SQLException {
+        if (resultType == OracleTypes.ARRAY) {
+            stmt.registerOutParameter(1, OracleTypes.ARRAY, helper.getNumberTab());
+        } else {
+            stmt.registerOutParameter(1, resultType);
+        }
     }
 
     private void setMetadata(PreparedStatement stmt, String metadata) throws SQLException {
         if (metadata != null) {
-            stmt.setString(2, metadata);
+            stmt.setString(3, metadata);
         } else {
-            stmt.setNull(2, Types.VARCHAR);
+            stmt.setNull(3, Types.VARCHAR);
         }
+    }
+
+    private Long getId(CallableStatement stmt) throws SQLException {
+        stmt.execute();
+        long id = stmt.getLong(1);
+        return !stmt.wasNull() ? id : null;
+    }
+
+    private Set<Long> getIds(CallableStatement stmt) throws SQLException {
+        stmt.execute();
+        Set<Long> ids = new HashSet<>();
+        Array array = stmt.getArray(1);
+        if (array != null) {
+            try {
+                for (Object value : (Object[]) array.getArray()) {
+                    if (value != null) {
+                        ids.add(((Number) value).longValue());
+                    }
+                }
+            } finally {
+                array.free();
+            }
+        }
+
+        return ids;
     }
 
     @Override
     public void close() throws SQLException {
-        SQLException exception = null;
-        for (PreparedStatement stmt : new PreparedStatement[]{
-                deleteFeatureStmt, deleteFeaturesStmt, terminateFeatureStmt, terminateFeaturesStmt}) {
-            if (stmt != null) {
-                try {
-                    stmt.close();
-                } catch (SQLException e) {
-                    if (exception == null) {
-                        exception = e;
-                    } else {
-                        exception.addSuppressed(e);
-                    }
-                }
-            }
-        }
-
-        deleteFeatureStmt = null;
-        deleteFeaturesStmt = null;
-        terminateFeatureStmt = null;
-        terminateFeaturesStmt = null;
-
-        if (exception != null) {
-            throw exception;
+        try (CallableStatement deleteFeatureStmt = this.deleteFeatureStmt;
+             CallableStatement deleteFeaturesStmt = this.deleteFeaturesStmt;
+             CallableStatement terminateFeatureStmt = this.terminateFeatureStmt;
+             CallableStatement terminateFeaturesStmt = this.terminateFeaturesStmt) {
         }
     }
 }
