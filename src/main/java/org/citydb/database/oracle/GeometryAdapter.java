@@ -94,6 +94,9 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
 
     @Override
     public Envelope getEnvelope(Object geometryObject) throws GeometryException {
+        if (geometryObject == null) {
+            return null;
+        }
         if (!(geometryObject instanceof Struct struct)) {
             throw new GeometryException("Unsupported geometry object type.");
         }
