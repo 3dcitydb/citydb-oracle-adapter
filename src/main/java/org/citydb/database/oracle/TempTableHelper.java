@@ -97,4 +97,15 @@ public class TempTableHelper implements org.citydb.database.util.TempTableHelper
                         .orElse("") +
                 ") on commit preserve rows";
     }
+
+    @Override
+    public String getDropTempTable(String name) {
+        String table = SchemaAdapter.enquoteSqlName(adapter.getConnectionDetails().getSchema()) + "." +
+                SchemaAdapter.enquoteSqlName(name);
+        // a global temporary table cannot be dropped while the session still has rows bound to it (ORA-14452)
+        return "begin " +
+                "execute immediate 'truncate table " + table + "'; " +
+                "execute immediate 'drop table " + table + "'; " +
+                "end;";
+    }
 }
