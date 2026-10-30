@@ -201,13 +201,12 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
                 double[] pointCoords = pointToCoords(((Point) geometry).getCoordinate(), dim);
                 return JGeometry.createPoint(pointCoords, dim, srid);
             case MULTI_POINT:
-                List<Point> points = ((MultiPoint) geometry).getPoints();
-                double[][] multiPointCoords = new double[points.size()][];
-                for (int i = 0; i < points.size(); i++) {
-                    Coordinate point = points.get(i).getCoordinate();
-                    multiPointCoords[i] = pointToCoords(point, dim);
-                }
-                return JGeometry.createMultiPoint(multiPointCoords, dim, srid);
+                // JGeometry.createMultiPoint collapses a single point to an SDO point, which would be read back as Point
+                List<Coordinate> multiPointCoords = ((MultiPoint) geometry).getPoints().stream()
+                        .map(Point::getCoordinate)
+                        .toList();
+                return new JGeometry(JGeometryUtil.getSDOGType(JGeometry.GTYPE_MULTIPOINT, dim), srid,
+                        new int[]{1, 1, multiPointCoords.size()}, pointsToCoords(multiPointCoords, dim));
             case LINE_STRING:
                 double[] lineStringCoords = pointsToCoords(((LineString) geometry).getPoints(), dim);
                 return JGeometry.createLinearLineString(lineStringCoords, dim, srid);
