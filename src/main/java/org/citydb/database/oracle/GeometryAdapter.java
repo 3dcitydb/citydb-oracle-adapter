@@ -112,9 +112,7 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         double[] mbr = geometry.getMBR();
         double[] min = Arrays.copyOfRange(mbr, 0, mbr.length / 2);
         double[] max = Arrays.copyOfRange(mbr, mbr.length / 2, mbr.length);
-        Coordinate lowerCorner = Coordinate.of(min[0], min[1], min.length == 3 ? min[2] : Double.NaN);
-        Coordinate upperCorner = Coordinate.of(max[0], max[1], max.length == 3 ? max[2] : Double.NaN);
-        Envelope envelope = Envelope.of(lowerCorner, upperCorner);
+        Envelope envelope = Envelope.of(createCoordinate(min, 0, min.length), createCoordinate(max, 0, max.length));
         envelope.setSRID(geometry.getSRID());
         return envelope;
     }
@@ -304,18 +302,20 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         }
     }
 
+    private static Coordinate createCoordinate(double[] ordinates, int offset, int dim) {
+        return dim > 2 ?
+                Coordinate.of(ordinates[offset], ordinates[offset + 1], ordinates[offset + 2]) :
+                Coordinate.of(ordinates[offset], ordinates[offset + 1]);
+    }
+
     private static Point createPoint(double[] ordinates, int dim) {
-        return Point.of(Coordinate.of(ordinates[0], ordinates[1], dim > 2 ? ordinates[2] : Double.NaN));
+        return Point.of(createCoordinate(ordinates, 0, dim));
     }
 
     private static MultiPoint createMultiPoint(double[] ordinates, int dim) {
         Point[] points = new Point[ordinates.length / dim];
         for (int i = 0; i < ordinates.length; i += dim) {
-            if (dim == 3) {
-                points[i / dim] = Point.of(Coordinate.of(ordinates[i], ordinates[i + 1], ordinates[i + 2]));
-            } else {
-                points[i] = Point.of(Coordinate.of(ordinates[i], ordinates[i + 1]));
-            }
+            points[i / dim] = Point.of(createCoordinate(ordinates, i, dim));
         }
         return MultiPoint.of(points);
     }
