@@ -40,20 +40,12 @@ repositories {
     mavenCentral()
 }
 
-configurations {
-    adapterRuntime {
-        canBeConsumed = false
-        canBeResolved = true
-    }
-    implementation.extendsFrom adapterRuntime
-}
-
 dependencies {
     compileOnly "org.citydb:citydb-database:${citydbVersion}"
 
-    adapterRuntime 'com.oracle.database.jdbc:ojdbc17:23.26.3.0.0'
-    adapterRuntime 'com.oracle.database.spatial:sdoapi:23.26'
-    adapterRuntime 'com.oracle.database.spatial:sdoutl:23.26'
+    implementation 'com.oracle.database.jdbc:ojdbc17:23.26.3.0.0'
+    implementation 'com.oracle.database.spatial:sdoapi:23.26'
+    implementation 'com.oracle.database.spatial:sdoutl:23.26'
 
     testImplementation "org.citydb:citydb-cli:${citydbVersion}"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
@@ -67,12 +59,8 @@ test {
 tasks.register('runCli', JavaExec) {
     group = 'application'
     description = 'Run the citydb CLI in-process with the Oracle adapter on the classpath.'
-    dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'org.citydb.database.oracle.cli.OracleCliLauncher'
-    javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
 }
 
 extraJavaModuleInfo {
@@ -82,12 +70,6 @@ extraJavaModuleInfo {
 
 tasks.register('assembleAdapter', Copy) {
     from tasks.named('jar')
-    from({
-        def shipped = configurations.adapterRuntime.incoming.artifacts.artifacts
-                .collect { it.id.componentIdentifier.displayName } as Set
-        configurations.runtimeClasspath.incoming.artifacts.artifacts
-                .findAll { shipped.contains(it.id.componentIdentifier.displayName) }
-                .collect { it.file }
-    })
-    into layout.buildDirectory.dir('adapter')
+    from configurations.runtimeClasspath
+    into layout.buildDirectory.dir('database-oracle-adapter')
 }
