@@ -197,6 +197,11 @@ public class SchemaAdapter extends org.citydb.database.adapter.SchemaAdapter {
     }
 
     @Override
+    public EnvelopeHelper getEnvelopeHelper(Connection connection) {
+        return new EnvelopeHelper(connection, adapter);
+    }
+
+    @Override
     public StatisticsHelper getStatisticsHelper() {
         return statisticsHelper;
     }

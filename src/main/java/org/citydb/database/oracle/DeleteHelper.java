@@ -19,17 +19,18 @@
 
 package org.citydb.database.oracle;
 
+import com.alibaba.fastjson2.JSONObject;
 import oracle.jdbc.OracleTypes;
 import org.citydb.database.adapter.DatabaseAdapter;
 
 import java.sql.Array;
 import java.sql.CallableStatement;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
@@ -37,9 +38,7 @@ public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
     private final String citydbDelete;
     private final String citydbTerminate;
     private CallableStatement deleteFeatureStmt;
-    private CallableStatement deleteFeaturesStmt;
     private CallableStatement terminateFeatureStmt;
-    private CallableStatement terminateFeaturesStmt;
 
     DeleteHelper(Connection connection, DatabaseAdapter adapter) {
         super(connection);
@@ -51,82 +50,45 @@ public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
 
     @Override
     public boolean deleteFeature(long id) throws SQLException {
-        if (deleteFeatureStmt == null) {
-            deleteFeatureStmt = prepareDeleteStatement(Types.NUMERIC);
-        }
-
-        deleteFeatureStmt.setLong(2, id);
-        return getId(deleteFeatureStmt) != null;
+        return !deleteFeatures(List.of(id)).isEmpty();
     }
 
     @Override
     public Set<Long> deleteFeatures(Collection<Long> ids) throws SQLException {
-        if (deleteFeaturesStmt == null) {
-            deleteFeaturesStmt = prepareDeleteStatement(OracleTypes.ARRAY);
+        if (deleteFeatureStmt == null) {
+            deleteFeatureStmt = prepareCall(citydbDelete + ".delete_feature(?)");
         }
 
-        helper.setLongArrayOrNull(deleteFeaturesStmt, 2, ids);
-        return getIds(deleteFeaturesStmt);
+        helper.setLongArrayOrNull(deleteFeatureStmt, 2, ids);
+        return getIds(deleteFeatureStmt);
     }
 
     @Override
-    public boolean terminateFeature(long id, String metadata, boolean cascade) throws SQLException {
+    public boolean terminateFeature(long id, JSONObject metadata) throws SQLException {
+        return !terminateFeatures(List.of(id), metadata).isEmpty();
+    }
+
+    @Override
+    public Set<Long> terminateFeatures(Collection<Long> ids, JSONObject metadata) throws SQLException {
         if (terminateFeatureStmt == null) {
-            terminateFeatureStmt = prepareTerminateStatement(Types.NUMERIC);
+            terminateFeatureStmt = prepareCall(citydbTerminate + ".terminate_feature(?, json(?))");
         }
 
-        terminateFeatureStmt.setLong(2, id);
-        setMetadata(terminateFeatureStmt, metadata);
-        terminateFeatureStmt.setInt(4, cascade ? 1 : 0);
-        return getId(terminateFeatureStmt) != null;
-    }
-
-    @Override
-    public Set<Long> terminateFeatures(Collection<Long> ids, String metadata, boolean cascade) throws SQLException {
-        if (terminateFeaturesStmt == null) {
-            terminateFeaturesStmt = prepareTerminateStatement(OracleTypes.ARRAY);
+        helper.setLongArrayOrNull(terminateFeatureStmt, 2, ids);
+        if (metadata != null) {
+            terminateFeatureStmt.setString(3, metadata.toString());
+        } else {
+            terminateFeatureStmt.setNull(3, Types.VARCHAR);
         }
 
-        helper.setLongArrayOrNull(terminateFeaturesStmt, 2, ids);
-        setMetadata(terminateFeaturesStmt, metadata);
-        terminateFeaturesStmt.setInt(4, cascade ? 1 : 0);
-        return getIds(terminateFeaturesStmt);
+        return getIds(terminateFeatureStmt);
     }
 
     // the functions run DML, so they cannot be used in a select (ORA-14551); read the result as OUT parameter
-    private CallableStatement prepareDeleteStatement(int resultType) throws SQLException {
-        CallableStatement stmt = connection.prepareCall("{? = call " + citydbDelete + ".delete_feature(?)}");
-        registerResult(stmt, resultType);
+    private CallableStatement prepareCall(String function) throws SQLException {
+        CallableStatement stmt = connection.prepareCall("{? = call " + function + "}");
+        stmt.registerOutParameter(1, OracleTypes.ARRAY, helper.getNumberTab());
         return stmt;
-    }
-
-    private CallableStatement prepareTerminateStatement(int resultType) throws SQLException {
-        CallableStatement stmt = connection.prepareCall("{? = call " + citydbTerminate +
-                ".terminate_feature(?, json(?), ?)}");
-        registerResult(stmt, resultType);
-        return stmt;
-    }
-
-    private void registerResult(CallableStatement stmt, int resultType) throws SQLException {
-        if (resultType == OracleTypes.ARRAY) {
-            stmt.registerOutParameter(1, OracleTypes.ARRAY, helper.getNumberTab());
-        } else {
-            stmt.registerOutParameter(1, resultType);
-        }
-    }
-
-    private void setMetadata(PreparedStatement stmt, String metadata) throws SQLException {
-        if (metadata != null) {
-            stmt.setString(3, metadata);
-        } else {
-            stmt.setNull(3, Types.VARCHAR);
-        }
-    }
-
-    private Long getId(CallableStatement stmt) throws SQLException {
-        stmt.execute();
-        long id = stmt.getLong(1);
-        return !stmt.wasNull() ? id : null;
     }
 
     private Set<Long> getIds(CallableStatement stmt) throws SQLException {
@@ -151,9 +113,7 @@ public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
     @Override
     public void close() throws SQLException {
         try (CallableStatement deleteFeatureStmt = this.deleteFeatureStmt;
-             CallableStatement deleteFeaturesStmt = this.deleteFeaturesStmt;
-             CallableStatement terminateFeatureStmt = this.terminateFeatureStmt;
-             CallableStatement terminateFeaturesStmt = this.terminateFeaturesStmt) {
+             CallableStatement terminateFeatureStmt = this.terminateFeatureStmt) {
         }
     }
 }

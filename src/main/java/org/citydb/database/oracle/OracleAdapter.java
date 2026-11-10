@@ -23,6 +23,7 @@ import oracle.jdbc.OracleDriver;
 import org.citydb.database.adapter.DatabaseAdapter;
 import org.citydb.database.adapter.DatabaseType;
 
+import java.sql.Driver;
 import java.util.Properties;
 
 @DatabaseType(name = OracleAdapter.DATABASE_NAME)
@@ -40,7 +41,7 @@ public class OracleAdapter extends DatabaseAdapter {
     }
 
     @Override
-    public Class<?> getDriverClass() {
+    public Class<? extends Driver> getDriverClass() {
         return OracleDriver.class;
     }
 
