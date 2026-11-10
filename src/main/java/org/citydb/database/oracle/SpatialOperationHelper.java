@@ -20,13 +20,16 @@
 package org.citydb.database.oracle;
 
 import org.citydb.sqlbuilder.function.Function;
+import org.citydb.sqlbuilder.literal.DoubleLiteral;
 import org.citydb.sqlbuilder.literal.IntegerLiteral;
 import org.citydb.sqlbuilder.literal.ScalarExpression;
 import org.citydb.sqlbuilder.literal.StringLiteral;
 import org.citydb.sqlbuilder.operation.BooleanExpression;
 import org.citydb.sqlbuilder.operation.Operators;
+import org.citydb.sqlbuilder.util.PlainSql;
 
 public class SpatialOperationHelper implements org.citydb.database.util.SpatialOperationHelper {
+    private static final double TOLERANCE = 0.001;
     private final StringLiteral TRUE = StringLiteral.of("1");
 
     @Override
@@ -58,9 +61,17 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     @Override
     public BooleanExpression crosses(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        // Oracle Database does not have a direct equivalent to PostgreSQL's st_crosses function.
-        // You may need to create a custom function or use a different approach.
-        throw new UnsupportedOperationException("crosses is not supported in Oracle Database.");
+        // Oracle has no exact crosses: the operands must overlap and either differ in dimension
+        // or both be lines that intersect in points only
+        ScalarExpression leftDimension = dimension(leftOperand);
+        ScalarExpression rightDimension = dimension(rightOperand);
+        ScalarExpression intersection = Function.of("MDSYS.sdo_geom.sdo_intersection",
+                leftOperand, rightOperand, DoubleLiteral.of(TOLERANCE));
+        return Operators.and(overlaps(leftOperand, rightOperand),
+                Operators.or(Operators.ne(leftDimension, rightDimension),
+                        Operators.and(Operators.eq(leftDimension, IntegerLiteral.of(1)),
+                                Operators.eq(Function.of("MDSYS.sdo_geom.sdo_length",
+                                        intersection, DoubleLiteral.of(TOLERANCE)), IntegerLiteral.of(0)))));
     }
 
     @Override
@@ -109,6 +120,11 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     private ScalarExpression maxOrdinate(ScalarExpression operand, int dimension) {
         return Function.of("MDSYS.sdo_geom.sdo_max_mbr_ordinate", operand, IntegerLiteral.of(dimension));
+    }
+
+    private ScalarExpression dimension(ScalarExpression operand) {
+        // points are 0, lines 1 and everything else is treated as areal
+        return PlainSql.of("decode(({}).get_gtype(), 1, 0, 5, 0, 2, 1, 6, 1, 2)", operand);
     }
 
     private ScalarExpression cast(ScalarExpression expression) {
