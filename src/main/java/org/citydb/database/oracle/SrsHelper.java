@@ -31,11 +31,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class SrsHelper extends org.citydb.database.util.SrsHelper {
-    private final String citydbSrs;
-
     SrsHelper(DatabaseAdapter adapter) {
         super(adapter);
-        citydbSrs = SchemaAdapter.qualify(adapter.getConnectionDetails().getSchema(), "citydb_srs");
     }
 
     @Override
@@ -59,6 +56,8 @@ public class SrsHelper extends org.citydb.database.util.SrsHelper {
 
     @Override
     protected SpatialReference getSpatialReference(int srid, String identifier, Connection connection) throws SQLException {
+        // resolved on use: the default schema is only applied after this helper has been created
+        String citydbSrs = SchemaAdapter.qualify(adapter.getConnectionDetails().getSchema(), "citydb_srs");
         String sql = "select coord_ref_sys_name, coord_ref_sys_kind, wktext " +
                 "from " + citydbSrs + ".get_coord_ref_sys_info(" + srid + ")";
 

@@ -34,19 +34,21 @@ import java.util.Locale;
 import java.util.function.IntFunction;
 
 public class SqlHelper extends org.citydb.database.util.SqlHelper {
-    private final String numberTab;
-    private final String stringTab;
+    private final DatabaseAdapter adapter;
 
     SqlHelper(DatabaseAdapter adapter) {
         super(adapter);
-        String schema = SchemaAdapter.checkSimpleSqlName(
-                adapter.getConnectionDetails().getSchema().toUpperCase(Locale.ROOT));
-        numberTab = schema + ".NUMBER_TAB";
-        stringTab = schema + ".STRING_TAB";
+        this.adapter = adapter;
     }
 
     String getNumberTab() {
-        return numberTab;
+        return qualifyType("NUMBER_TAB");
+    }
+
+    // resolved on use: the default schema is only applied after this helper has been created
+    private String qualifyType(String name) {
+        return SchemaAdapter.checkSimpleSqlName(
+                adapter.getConnectionDetails().getSchema().toUpperCase(Locale.ROOT)) + "." + name;
     }
 
     @Override
@@ -61,7 +63,9 @@ public class SqlHelper extends org.citydb.database.util.SqlHelper {
     @Override
     public void setJsonOrNull(PreparedStatement stmt, int index, String json) throws SQLException {
         if (json != null) {
-            stmt.setString(index, json);
+            // not setString: strings > 4000 bytes become LONG stream binds, which fail (ORA-40441) or hang when
+            // another session concurrently creates the deferred segment of a table linked by a foreign key
+            stmt.setObject(index, json, OracleTypes.JSON);
         } else {
             stmt.setNull(index, OracleTypes.JSON);
         }
@@ -78,12 +82,12 @@ public class SqlHelper extends org.citydb.database.util.SqlHelper {
 
     @Override
     public void setLongArrayOrNull(PreparedStatement stmt, int index, Collection<Long> values) throws SQLException {
-        setArrayOrNull(stmt, index, values, numberTab, Long[]::new);
+        setArrayOrNull(stmt, index, values, getNumberTab(), Long[]::new);
     }
 
     @Override
     public void setStringArrayOrNull(PreparedStatement stmt, int index, Collection<String> values) throws SQLException {
-        setArrayOrNull(stmt, index, values, stringTab, String[]::new);
+        setArrayOrNull(stmt, index, values, qualifyType("STRING_TAB"), String[]::new);
     }
 
     private <T> void setArrayOrNull(PreparedStatement stmt, int index, Collection<T> values, String type, IntFunction<T[]> factory) throws SQLException {
