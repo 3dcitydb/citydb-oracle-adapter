@@ -22,6 +22,8 @@ package org.citydb.database.oracle;
 import oracle.spatial.geometry.J3D_Geometry;
 import oracle.spatial.geometry.JGeometry;
 
+import java.util.Arrays;
+
 /**
  * This class contains utility methods to construct a JGeometry object.
  */
@@ -264,5 +266,56 @@ public class JGeometryUtil {
         return new J3D_Geometry(internalGType, srid, elemInfo, ordinates);
     }
 
-}
+    /**
+     * Creates a geometry collection consisting of the given geometries.
+     *
+     * @param geoms geometries to be included in the collection, all having the given dimension
+     * @param dim
+     * @param srid
+     * @return the collection, or null if there are no geometries
+     */
+    public static JGeometry createCollection(JGeometry[] geoms, int dim, int srid) {
+        if (geoms == null || geoms.length == 0) {
+            return null;
+        }
+        int[][] elemInfoArray = new int[geoms.length][];
+        double[][] ordinatesArray = new double[geoms.length][];
+        int elemInfoLength = 0;
+        int ordinatesLength = 0;
+        for (int i = 0; i < geoms.length; i++) {
+            int[] elemInfo = geoms[i].getElemInfo();
+            if (elemInfo == null) {
+                // a point created by JGeometry.createPoint is an SDO point without element info
+                elemInfoArray[i] = new int[]{1, 1, 1};
+                ordinatesArray[i] = geoms[i].getPoint();
+            } else {
+                // spatial operators reject composite surface and solid elements in a collection (ORA-13354)
+                int etype = elemInfo[1] % 10;
+                if (etype == J3D_Geometry.ETYPE_SOLID || etype == J3D_Geometry.ETYPE_COMPOSITESOLID) {
+                    throw new IllegalArgumentException("Oracle does not support solids in a geometry collection.");
+                }
+                elemInfoArray[i] = etype == J3D_Geometry.ETYPE_COMPOSITEPOLYGON
+                        ? Arrays.copyOfRange(elemInfo, 3, elemInfo.length)
+                        : elemInfo;
+                ordinatesArray[i] = geoms[i].getOrdinatesArray();
+            }
+            elemInfoLength += elemInfoArray[i].length;
+            ordinatesLength += ordinatesArray[i].length;
+        }
+        int[] elemInfo = new int[elemInfoLength];
+        double[] ordinates = new double[ordinatesLength];
+        int currElemInfoPos = 0;
+        int currOrdinatesPos = 0;
+        for (int i = 0; i < geoms.length; i++) {
+            System.arraycopy(elemInfoArray[i], 0, elemInfo, currElemInfoPos, elemInfoArray[i].length);
+            for (int j = 0; j < elemInfoArray[i].length; j += 3) {
+                elemInfo[currElemInfoPos + j] += currOrdinatesPos;
+            }
+            currElemInfoPos += elemInfoArray[i].length;
+            System.arraycopy(ordinatesArray[i], 0, ordinates, currOrdinatesPos, ordinatesArray[i].length);
+            currOrdinatesPos += ordinatesArray[i].length;
+        }
+        return new JGeometry(getSDOGType(JGeometry.GTYPE_COLLECTION, dim), srid, elemInfo, ordinates);
+    }
 
+}

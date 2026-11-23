@@ -76,7 +76,10 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     @Override
     public BooleanExpression disjoint(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=DISJOINT querytype=WINDOW"));
+        // sdo_relate does not support the DISJOINT mask and returns no rows for it. The negated operator
+        // would also match missing geometries, which are neither disjoint nor intersecting.
+        return Operators.and(leftOperand.isNotNull(), rightOperand.isNotNull(),
+                Operators.not(intersects(leftOperand, rightOperand)));
     }
 
     @Override

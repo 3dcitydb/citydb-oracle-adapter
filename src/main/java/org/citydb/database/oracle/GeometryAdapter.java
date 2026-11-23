@@ -42,8 +42,8 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
     }
 
     @Override
-    public String getAsText(Geometry<?> geometry) throws GeometryException {
-        return textWriter.write(geometry);
+    public String getAsText(SpatialObject object) throws GeometryException {
+        return textWriter.write(object);
     }
 
     @Override
@@ -83,10 +83,12 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
     }
 
     @Override
-    public Struct getGeometry(Geometry<?> geometry, boolean force3D, Connection connection) throws GeometryException {
+    public Struct getGeometry(SpatialObject object, boolean force3D, Connection connection) throws GeometryException {
         try {
-            JGeometry oracleGeometry = toOracleGeometry(geometry, force3D);
-            return JGeometry.storeJS(connection.unwrap(oracle.jdbc.OracleConnection.class), oracleGeometry);
+            JGeometry oracleGeometry = toOracleGeometry(object, force3D);
+            return oracleGeometry != null
+                    ? JGeometry.storeJS(connection.unwrap(oracle.jdbc.OracleConnection.class), oracleGeometry)
+                    : null;
         } catch (Exception e) {
             throw new GeometryException(e);
         }
@@ -191,9 +193,39 @@ public class GeometryAdapter extends org.citydb.database.adapter.GeometryAdapter
         return toOracleGeometry(geometry, false);
     }
 
+    static JGeometry toOracleGeometry(SpatialObject object, boolean force3D) {
+        if (object instanceof Geometry<?> geometry) {
+            return toOracleGeometry(geometry, force3D);
+        } else if (object instanceof Envelope envelope) {
+            return toOracleGeometry(envelope.convertToPolygon(), force3D);
+        } else if (object instanceof GeometryCollection collection) {
+            return toOracleGeometry(collection, force3D ? 3 : collection.getVertexDimension());
+        } else {
+            throw new IllegalArgumentException("Unsupported spatial object type " +
+                    object.getClass().getName() + ".");
+        }
+    }
+
     static JGeometry toOracleGeometry(Geometry<?> geometry, boolean force3D) {
+        return toOracleGeometry(geometry, force3D ? 3 : geometry.getVertexDimension());
+    }
+
+    private static JGeometry toOracleGeometry(GeometryCollection collection, int dim) {
+        List<Geometry<?>> geometries = collection.getGeometries();
+        JGeometry[] members = new JGeometry[geometries.size()];
+        for (int i = 0; i < members.length; i++) {
+            members[i] = toOracleGeometry(geometries.get(i), dim);
+            if (members[i].getDimensions() != dim) {
+                // surfaces and solids are always stored in 3D, so the whole collection is as well
+                return toOracleGeometry(collection, members[i].getDimensions());
+            }
+        }
+
+        return JGeometryUtil.createCollection(members, dim, collection.getSRID().orElse(0));
+    }
+
+    private static JGeometry toOracleGeometry(Geometry<?> geometry, int dim) {
         GeometryType type = geometry.getGeometryType();
-        int dim = force3D ? 3 : geometry.getVertexDimension();
         int srid = geometry.getSRID().orElse(0);
 
         switch (type) {

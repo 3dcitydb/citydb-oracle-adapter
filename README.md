@@ -47,15 +47,16 @@ Note that this option replaces the default `extensions/` directory rather than a
 
 ## Select the Oracle adapter
 
-The adapter type is chosen via the `databaseName` connection property. There is currently no
-CLI flag for it, so set it in a config file passed with `--config-file`:
+The adapter type is chosen via the `databaseType` connection property. Pass it on the command
+line with `--db-type Oracle`, set the `CITYDB_TYPE` environment variable, or set it in a config
+file passed with `--config-file`:
 
 ```json
 {
   "databaseOptions": {
     "connections": {
       "oracle": {
-        "databaseName": "Oracle",
+        "databaseType": "Oracle",
         "host": "localhost",
         "port": 1521,
         "database": "FREEPDB1",
@@ -105,7 +106,7 @@ debuggable from the IDE, without assembling a distribution or setting up a compo
 The entry point is [`OracleCliLauncher`](src/test/java/org/citydb/database/oracle/cli/OracleCliLauncher.java),
 wrapped by the `runCli` Gradle task. The config file
 [`src/test/resources/oracle.json`](src/test/resources/oracle.json) is only an example: keep
-`databaseName: "Oracle"`, which selects this adapter, and replace the connection parameters
+`databaseType: "Oracle"`, which selects this adapter, and replace the connection parameters
 with those of your local Oracle database. Then:
 
 ```bash

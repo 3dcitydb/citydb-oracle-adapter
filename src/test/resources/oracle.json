@@ -3,7 +3,7 @@
     "connections": {
       "oracle": {
         "description": "Oracle test database for the citydb-oracle-adapter",
-        "databaseName": "Oracle",
+        "databaseType": "Oracle",
         "host": "localhost",
         "port": 1521,
         "database": "FREEPDB1",

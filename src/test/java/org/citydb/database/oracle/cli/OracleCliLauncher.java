@@ -41,8 +41,8 @@ import org.citydb.cli.Launcher;
  * or run this {@code main} directly from the IDE (arguments default to {@code --version} so a
  * plain Run verifies the CLI starts and the Oracle adapter is on the classpath).
  *
- * <p>Select the Oracle adapter through the {@code databaseName: "Oracle"} connection property
- * in the config file (see {@code src/test/resources/oracle.json}); there is no CLI flag for it.
+ * <p>Select the Oracle adapter through the {@code databaseType: "Oracle"} connection property
+ * in the config file (see {@code src/test/resources/oracle.json}) or with {@code --db-type Oracle}.
  */
 public class OracleCliLauncher {
 

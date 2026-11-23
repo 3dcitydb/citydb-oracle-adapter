@@ -26,9 +26,9 @@ import org.citydb.database.adapter.DatabaseType;
 import java.sql.Driver;
 import java.util.Properties;
 
-@DatabaseType(name = OracleAdapter.DATABASE_NAME)
+@DatabaseType(name = OracleAdapter.DATABASE_TYPE)
 public class OracleAdapter extends DatabaseAdapter {
-    public static final String DATABASE_NAME = "Oracle";
+    public static final String DATABASE_TYPE = "Oracle";
 
     @Override
     protected SchemaAdapter createSchemaAdapter(DatabaseAdapter adapter) {
