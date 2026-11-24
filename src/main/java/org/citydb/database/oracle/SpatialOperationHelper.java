@@ -56,7 +56,8 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     @Override
     public BooleanExpression contains(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=CONTAINS querytype=WINDOW"));
+        // CONTAINS alone excludes geometries that share a boundary or are equal
+        return relate(leftOperand, rightOperand, "CONTAINS+COVERS+EQUAL");
     }
 
     @Override
@@ -84,7 +85,7 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     @Override
     public BooleanExpression equals(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=EQUAL querytype=WINDOW"));
+        return relate(leftOperand, rightOperand, "EQUAL");
     }
 
     @Override
@@ -94,17 +95,18 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
 
     @Override
     public BooleanExpression overlaps(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=OVERLAPBDYDISJOINT+OVERLAPBDYINTERSECT querytype=WINDOW"));
+        return relate(leftOperand, rightOperand, "OVERLAPBDYDISJOINT+OVERLAPBDYINTERSECT");
     }
 
     @Override
     public BooleanExpression touches(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=TOUCH querytype=WINDOW"));
+        return relate(leftOperand, rightOperand, "TOUCH");
     }
 
     @Override
     public BooleanExpression within(ScalarExpression leftOperand, ScalarExpression rightOperand) {
-        return Function.of("MDSYS.sdo_relate", leftOperand, rightOperand, StringLiteral.of("mask=INSIDE querytype=WINDOW"));
+        // INSIDE alone excludes geometries that share a boundary or are equal
+        return relate(leftOperand, rightOperand, "INSIDE+COVEREDBY+EQUAL");
     }
 
     @Override
@@ -115,6 +117,20 @@ public class SpatialOperationHelper implements org.citydb.database.util.SpatialO
     @Override
     public BooleanExpression beyond(ScalarExpression leftOperand, ScalarExpression rightOperand, ScalarExpression distance) {
         return Operators.not(Function.of("MDSYS.sdo_within_distance", leftOperand, rightOperand, StringLiteral.of("distance=" + distance.getPlaceholders().get(0).getValue().get())));
+    }
+
+    private BooleanExpression relate(ScalarExpression leftOperand, ScalarExpression rightOperand, String mask) {
+        // sdo_relate only gets ANYINTERACT right for surfaces and solids, whose 2D projection has overlapping,
+        // degenerate or clockwise polygons. So the index is used as a filter and the mask is checked on the footprints.
+        return Operators.and(intersects(leftOperand, rightOperand),
+                Operators.ne(Function.of("MDSYS.sdo_geom.relate", footprint(leftOperand), StringLiteral.of(mask),
+                        footprint(rightOperand), DoubleLiteral.of(TOLERANCE)), StringLiteral.of("FALSE")));
+    }
+
+    private ScalarExpression footprint(ScalarExpression operand) {
+        // sdo_geom.relate supports the masks in 2D only, and make_2d cannot convert solids before the union
+        return Function.of("MDSYS.sdo_cs.make_2d",
+                Function.of("MDSYS.sdo_geom.sdo_self_union", operand, DoubleLiteral.of(TOLERANCE)));
     }
 
     private ScalarExpression minOrdinate(ScalarExpression operand, int dimension) {
