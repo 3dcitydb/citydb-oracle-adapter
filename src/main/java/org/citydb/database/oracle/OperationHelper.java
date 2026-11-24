@@ -57,6 +57,11 @@ public class OperationHelper extends org.citydb.database.util.OperationHelper {
     }
 
     @Override
+    public Expression modulo(ScalarExpression leftOperand, ScalarExpression rightOperand) {
+        return Function.of("mod", leftOperand, rightOperand);
+    }
+
+    @Override
     public Expression power(ScalarExpression leftOperand, ScalarExpression rightOperand) {
         return Function.of("power", leftOperand, rightOperand);
     }
