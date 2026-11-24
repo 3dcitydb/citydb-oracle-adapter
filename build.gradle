@@ -1,5 +1,9 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
 plugins {
     id 'java-library'
+    id 'distribution'
+    id 'maven-publish'
     id 'org.gradlex.extra-java-module-info' version '1.+'
 }
 
@@ -7,9 +11,11 @@ group = 'org.citydb'
 
 ext {
     citydbVersion = '1.5.0-SNAPSHOT'
+    githubUrl = 'https://github.com/3dcitydb/citydb-oracle-adapter'
+    gitConnection = githubUrl + '.git'
 }
 
-version = '1.0.0-Snapshot'
+version = '1.0.0-SNAPSHOT'
 
 java {
     toolchain {
@@ -40,6 +46,14 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    // resolves the original jars, not the copies patched by extra-java-module-info
+    thirdPartyLibs {
+        canBeConsumed = false
+        extendsFrom implementation, runtimeOnly
+    }
+}
+
 dependencies {
     compileOnly "org.citydb:citydb-database:${citydbVersion}"
 
@@ -66,10 +80,56 @@ tasks.register('runCli', JavaExec) {
 extraJavaModuleInfo {
     failOnMissingModuleInfo = false
     deriveAutomaticModuleNamesFromFileNames = true
+    // Gradle misses the Automatic-Module-Name of these jars because their manifest
+    // is not the first entry, so repeat the names the JVM sees at runtime
+    automaticModule('com.oracle.database.spatial:sdoapi', 'com.oracle.spatial.geometry')
+    automaticModule('com.oracle.database.spatial:sdoutl', 'com.oracle.spatial.util')
 }
 
-tasks.register('assembleAdapter', Copy) {
+distributions.main.contents {
+    from('resources/license/LICENSE.txt') {
+        filter(ReplaceTokens, tokens: [name: project.name])
+    }
     from tasks.named('jar')
-    from configurations.runtimeClasspath
-    into layout.buildDirectory.dir('database-oracle-adapter')
+    from configurations.thirdPartyLibs
+}
+
+tasks.register('bundleMavenZip', Zip) {
+    group = distZip.group
+    archiveFileName = "${project.name}-${project.version}.zip"
+    destinationDirectory = layout.buildDirectory.dir('maven')
+    from installDist
+}
+
+publishing {
+    publications {
+        mavenZip(MavenPublication) {
+            artifact tasks.named('bundleMavenZip')
+            pom {
+                name = project.name
+                url = githubUrl
+                scm {
+                    url = githubUrl
+                    connection = 'scm:git:' + gitConnection
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = project.hasProperty('gitLab_maven_url') ?
+                    project.property('gitLab_maven_url') :
+                    System.getenv('GITLAB_MAVEN_URL')
+            name = 'gitlab-maven'
+            credentials(HttpHeaderCredentials) {
+                name = 'Private-Token'
+                value = project.hasProperty('gitLab_private_token') ?
+                        project.property('gitLab_private_token') :
+                        System.getenv('GITLAB_PRIVATE_TOKEN')
+            }
+            authentication {
+                header(HttpHeaderAuthentication)
+            }
+        }
+    }
 }

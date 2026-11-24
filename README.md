@@ -24,8 +24,8 @@ To produce a ready-to-drop-in folder containing the adapter jar together with it
 Oracle-specific dependencies:
 
 ```bash
-./gradlew assembleAdapter
-# -> build/database-oracle-adapter/
+./gradlew installDist
+# -> build/install/citydb-oracle-adapter/
 #      citydb-oracle-adapter-<version>.jar
 #      ojdbc*.jar
 #      sdoapi*.jar
@@ -34,11 +34,11 @@ Oracle-specific dependencies:
 
 ## Install into citydb-tool
 
-Copy the folder `build/database-oracle-adapter` including all its contents into the `extensions/`
+Copy the folder `build/install/citydb-oracle-adapter` including all its contents into the `extensions/`
 directory of the citydb-tool distribution:
 
 ```bash
-cp -r build/database-oracle-adapter /path/to/citydb-tool/extensions/
+cp -r build/install/citydb-oracle-adapter /path/to/citydb-tool/extensions/
 ```
 
 Alternatively, keep the adapter folder anywhere and point the CLI at it with
@@ -87,7 +87,13 @@ includeBuild '../citydb-oracle-adapter'
 ```
 ```gradle
 // citydb-tool/citydb-cli/build.gradle
-runtimeOnly 'org.citydb:citydb-oracle-adapter:1.0.0-Snapshot'
+runtimeOnly 'org.citydb:citydb-oracle-adapter:1.0.0-SNAPSHOT'
+
+// Gradle does not detect the module names of the Oracle Spatial jars on its own
+extraJavaModuleInfo {
+    automaticModule('com.oracle.database.spatial:sdoapi', 'com.oracle.spatial.geometry')
+    automaticModule('com.oracle.database.spatial:sdoutl', 'com.oracle.spatial.util')
+}
 ```
 
 Then run the CLI via the `:citydb-cli:run` task:

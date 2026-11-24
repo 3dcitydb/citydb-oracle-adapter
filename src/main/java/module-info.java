@@ -1,8 +1,8 @@
 module org.citydb.database.oracle {
     requires org.citydb.database;
     requires com.oracle.database.jdbc;
-    requires sdoapi;
-    requires sdoutl;
+    requires com.oracle.spatial.geometry;
+    requires com.oracle.spatial.util;
 
     exports org.citydb.database.oracle;
 
