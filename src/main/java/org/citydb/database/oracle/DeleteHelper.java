@@ -19,9 +19,10 @@
 
 package org.citydb.database.oracle;
 
-import com.alibaba.fastjson2.JSONObject;
 import oracle.jdbc.OracleTypes;
+import org.citydb.core.json.Json;
 import org.citydb.database.adapter.DatabaseAdapter;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.sql.Array;
 import java.sql.CallableStatement;
@@ -64,19 +65,19 @@ public class DeleteHelper extends org.citydb.database.util.DeleteHelper {
     }
 
     @Override
-    public boolean terminateFeature(long id, JSONObject metadata) throws SQLException {
+    public boolean terminateFeature(long id, ObjectNode metadata) throws SQLException {
         return !terminateFeatures(List.of(id), metadata).isEmpty();
     }
 
     @Override
-    public Set<Long> terminateFeatures(Collection<Long> ids, JSONObject metadata) throws SQLException {
+    public Set<Long> terminateFeatures(Collection<Long> ids, ObjectNode metadata) throws SQLException {
         if (terminateFeatureStmt == null) {
             terminateFeatureStmt = prepareCall(citydbTerminate + ".terminate_feature(?, json(?))");
         }
 
         helper.setLongArrayOrNull(terminateFeatureStmt, 2, ids);
         if (metadata != null) {
-            terminateFeatureStmt.setString(3, metadata.toString());
+            terminateFeatureStmt.setString(3, Json.write(metadata));
         } else {
             terminateFeatureStmt.setNull(3, Types.VARCHAR);
         }
